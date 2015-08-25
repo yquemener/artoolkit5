@@ -50,6 +50,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdarg.h>
+#include <ctype.h>    // tolower()
 #ifdef _WIN32
 #  include <sys/timeb.h>
 #  include <direct.h> // chdir(), getcwd()
@@ -120,6 +121,8 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
 
 #endif // ANDROID
 
+
+
 ARUint32 arGetVersion(char **versionStringRef)
 {
 	const char version[] = AR_HEADER_VERSION_STRING;
@@ -180,7 +183,7 @@ void arLog(const int logLevel, const char *format, ...)
 #ifdef _WIN32
     len = _vscprintf(format, ap);
     if (len >= 0) {
-        buf = (char *)malloc((len + 1)*sizeof(char)); // +1 for nul-term.
+        buf = (char *)malloc((len + 1) * sizeof(char)); // +1 for nul-term.
         vsnprintf(buf, len, format, ap);
         buf[len] = '\0'; // nul-terminate.
     }
@@ -1052,9 +1055,9 @@ char *arUtilGetResourcesDirectoryPath(AR_UTIL_RESOURCES_DIRECTORY_BEHAVIOR behav
             if (isAttached) (*gJavaVM)->DetachCurrentThread(gJavaVM); // Clean up.
             return (wpath1);
         }
-#elif defined(__APPLE__) // iOS/OS X.
+#elif defined(__APPLE__) && defined(__OBJC__) // iOS/OS X.
         {
-            NSString *nssHomeDir = NSHomeDirectory();
+            NSString *nssHomeDir = NSHomeDirectory(); // CoreFoundation equivalent is CFCopyHomeDirectoryURL(), iOS 6.0+ only.
             if (!nssHomeDir) {
                 return (NULL);
             }

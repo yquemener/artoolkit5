@@ -60,6 +60,7 @@
 #include <stdarg.h>
 
 #include <algorithm>
+#include <string>
 
 // ----------------------------------------------------------------------------------------------------
 #pragma mark  Singleton, constructor, destructor

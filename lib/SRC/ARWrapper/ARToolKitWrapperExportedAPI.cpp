@@ -839,7 +839,7 @@ EXPORT_API bool arwLoadOpticalParams(const char *optical_param_name, const char 
 // Utility function to create a Java float array from a C float array
 jfloatArray glArrayToJava(JNIEnv *env, ARdouble *arr, int len) {
 	jfloatArray result = NULL;
-	if (result = env->NewFloatArray(len)) env->SetFloatArrayRegion(result, 0, len, arr);
+	if ((result = env->NewFloatArray(len))) env->SetFloatArrayRegion(result, 0, len, arr);
 	return result;
 }
 

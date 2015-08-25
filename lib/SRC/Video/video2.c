@@ -51,9 +51,9 @@ static const char *ar2VideoGetConfig(const char *config_in)
     
     /* If no config string is supplied, we should use the environment variable, otherwise set a sane default */
     if (!config_in || !(config_in[0])) {
-        /* None suppplied, lets see if the user supplied one from the shell */
+        /* None supplied, lets see if the user supplied one from the shell */
 #ifndef _WINRT
-        char *envconf = getenv ("ARTOOLKIT5_VCONF");
+        char *envconf = getenv("ARTOOLKIT5_VCONF");
         if (envconf && envconf[0]) {
             config = envconf;
             ARLOGi("Using video config from environment \"%s\".\n", envconf);
