@@ -236,10 +236,10 @@ include $(BUILD_STATIC_LIBRARY)
 include $(CLEAR_VARS)
 LOCAL_PATH := $(MY_LOCAL_PATH)
 CURL_DIR := $(MY_LOCAL_PATH)/curl
-MY_FILES := $(wildcard $(ARTOOLKIT_ROOT)/lib/SRC/video/*.c)
-MY_FILES += $(wildcard $(ARTOOLKIT_ROOT)/lib/SRC/videoAndroid/*.c)
-MY_FILES += $(wildcard $(ARTOOLKIT_ROOT)/lib/SRC/videoDummy/*.c)
-MY_FILES += $(wildcard $(ARTOOLKIT_ROOT)/lib/SRC/videoImage/*.c)
+MY_FILES := $(wildcard $(ARTOOLKIT_ROOT)/lib/SRC/Video/*.c)
+MY_FILES += $(wildcard $(ARTOOLKIT_ROOT)/lib/SRC/VideoAndroid/*.c)
+MY_FILES += $(wildcard $(ARTOOLKIT_ROOT)/lib/SRC/VideoDummy/*.c)
+MY_FILES += $(wildcard $(ARTOOLKIT_ROOT)/lib/SRC/VideoImage/*.c)
 MY_FILES := $(MY_FILES:$(LOCAL_PATH)/%=%)
 # ARToolKit libs use lots of floating point, so don't compile in thumb mode.
 LOCAL_ARM_MODE := arm
