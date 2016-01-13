@@ -44,9 +44,9 @@
 #if TARGET_PLATFORM_ANDROID
 
 /**
- * Video input implementation for Android. On Android, video capture occurs in Java, and the frame data 
- * is passed across to the native code using JNI. Therefore, ARToolKit cannot open the camera and 
- * initiate video capture in the same way as it does on other platforms. Instead, the video source remains 
+ * Video input implementation for Android. On Android, video capture occurs in Java, and the frame data
+ * is passed across to the native code using JNI. Therefore, ARToolKit cannot open the camera and
+ * initiate video capture in the same way as it does on other platforms. Instead, the video source remains
  * closed until the first frame arrives over JNI.
  */
 class AndroidVideoSource : public VideoSource {
@@ -61,8 +61,8 @@ private:
     bool getVideoReadyAndroid2(const ARParam *cparam_p);
 
 protected:
-    
-    AR2VideoParamT *gVid;
+
+    AR2VideoParamT *mAndroidVidParam; //Previously gVid;
     int gCameraIndex;
     bool gCameraIsFrontFacing;
 
@@ -79,7 +79,7 @@ public:
      * @return		Size of the buffer containing the current video frame
      */
     size_t getFrameSize();
-    
+
 	void acceptImage(ARUint8* ptr);
 
 	virtual bool captureFrame();
@@ -90,6 +90,6 @@ public:
 
 };
 
-#endif
+#endif //#if TARGET_PLATFORM_ANDROID
 
 #endif // !ANDROIDVIDEOSOURCE_H

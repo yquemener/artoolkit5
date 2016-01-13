@@ -58,45 +58,45 @@ const char* AndroidVideoSource::getName() {
 }
 
 bool AndroidVideoSource::open() {
-    
-	ARController::logv("Opening Android Video Source.");
-    
+
+	ARController::logv("AndroidVideoSource::open(): Opening Android Video Source.");
+
     if (deviceState != DEVICE_CLOSED) {
-        ARController::logv("Error: device is already open.");
+        ARController::logv("AndroidVideoSource::open(): Error: device is already open.");
         return false;
     }
-    
+
 	// On Android, ARVideo doesn't actually provide the frames, but it is needed to handle
     // fetching of the camera parameters. Note that if the current working directory
-    // isn't already the directory where the camera parametere cache should be created,
+    // isn't already the directory where the camera parameter cache should be created,
     // then the videoconfiguration should include the option 'cachedir="/path/to/cache"'.
-    gVid = ar2VideoOpen(videoConfiguration);
-    if (!gVid) {
-		ARController::logv("arVideoOpen unable to open connection to camera.");
+    mAndroidVidParam = ar2VideoOpen(videoConfiguration);
+    if (!mAndroidVidParam) {
+		ARController::logv("AndroidVideoSource::open() unable to open connection to camera.");
     	return false;
 	}
 	//ARController::logv("Opened connection to camera.");
 
-    pixelFormat = ar2VideoGetPixelFormat(gVid);
+    pixelFormat = ar2VideoGetPixelFormat(mAndroidVidParam);
     if (pixelFormat == AR_PIXEL_FORMAT_INVALID) {
-        ARController::logv("AndroidVideoSource::getVideoReadyAndroid: Error: No pixel format set.\n");
+        ARController::logv("AndroidVideoSource::open(): Error: No pixel format set.\n");
         goto bail;
     }
-    
+
 	deviceState = DEVICE_OPEN;
 	return true;
-    
+
 bail:
-    ar2VideoClose(gVid);
-    gVid = NULL;
+    ar2VideoClose(mAndroidVidParam);
+    mAndroidVidParam = NULL;
     return false;
 }
 
 bool AndroidVideoSource::getVideoReadyAndroid(const int width, const int height, const int cameraIndex, const bool cameraIsFrontFacing) {
-	
+
     char *a, b[1024];
     int err_i;
-    
+
     if (deviceState == DEVICE_GETTING_READY) return true;
     else if (deviceState != DEVICE_OPEN) {
         ARController::logv("AndroidVideoSource::getVideoReadyAndroid: Error: device not open.\n");
@@ -107,7 +107,7 @@ bool AndroidVideoSource::getVideoReadyAndroid(const int width, const int height,
 #ifdef DEBUG
     ARController::logv("AndroidVideoSource::getVideoReadyAndroid: width=%d, height=%d, cameraIndex=%d, cameraIsFrontFacing=%s.\n", width, height, cameraIndex, (cameraIsFrontFacing ? "true" : "false"));
 #endif
-    
+
 	videoWidth = width;
 	videoHeight = height;
     gCameraIndex = cameraIndex;
@@ -122,21 +122,21 @@ bool AndroidVideoSource::getVideoReadyAndroid(const int width, const int height,
         glPixFormat = GL_LUMINANCE;
         glPixType = GL_UNSIGNED_BYTE;
     } else {
-        ARController::logv("Unsupported video format '%s'.\n", arUtilGetPixelFormatName(pixelFormat));
+        ARController::logv("AndroidVideoSource::getVideoReadyAndroid: Unsupported video format '%s'.\n", arUtilGetPixelFormatName(pixelFormat));
         return false;
     }
-    
-    ar2VideoSetParami(gVid, AR_VIDEO_PARAM_ANDROID_WIDTH, videoWidth);
-	ar2VideoSetParami(gVid, AR_VIDEO_PARAM_ANDROID_HEIGHT, videoHeight);
-	ar2VideoSetParami(gVid, AR_VIDEO_PARAM_ANDROID_CAMERA_INDEX, gCameraIndex);
-	ar2VideoSetParami(gVid, AR_VIDEO_PARAM_ANDROID_CAMERA_FACE, gCameraIsFrontFacing);
-	//ar2VideoSetParami(gVid, AR_VIDEO_PARAM_ANDROID_INTERNET_STATE, gInternetState);
 
-	if (ar2VideoGetCParamAsync(gVid, getVideoReadyAndroidCparamCallback, (void *)this) < 0) {
+    ar2VideoSetParami(mAndroidVidParam, AR_VIDEO_PARAM_ANDROID_WIDTH, videoWidth);
+	ar2VideoSetParami(mAndroidVidParam, AR_VIDEO_PARAM_ANDROID_HEIGHT, videoHeight);
+	ar2VideoSetParami(mAndroidVidParam, AR_VIDEO_PARAM_ANDROID_CAMERA_INDEX, gCameraIndex);
+	ar2VideoSetParami(mAndroidVidParam, AR_VIDEO_PARAM_ANDROID_CAMERA_FACE, gCameraIsFrontFacing);
+	//ar2VideoSetParami(mAndroidVidParam, AR_VIDEO_PARAM_ANDROID_INTERNET_STATE, gInternetState);
+
+	if (ar2VideoGetCParamAsync(mAndroidVidParam, getVideoReadyAndroidCparamCallback, (void *)this) < 0) {
 		ARController::logv("Error getting cparam.\n");
 		getVideoReadyAndroid2(NULL);
 	}
-    
+
 	return (true);
 }
 
@@ -149,7 +149,7 @@ void AndroidVideoSource::getVideoReadyAndroidCparamCallback(const ARParam *cpara
 }
 
 bool AndroidVideoSource::getVideoReadyAndroid2(const ARParam *cparam_p) {
-    
+
 	// Load camera parameters
     ARParam cparam;
 	if (cparam_p) cparam = *cparam_p;
@@ -199,13 +199,13 @@ bool AndroidVideoSource::getVideoReadyAndroid2(const ARParam *cparam_p) {
     } else {
         frameBuffer2 = NULL;
     }
-    
+
 
 	ARController::logv("Android Video Source running %dx%d.", videoWidth, videoHeight);
 
 	deviceState = DEVICE_RUNNING;
     return true;
-    
+
 bail:
     deviceState = DEVICE_OPEN;
     return false;
@@ -219,25 +219,25 @@ bool AndroidVideoSource::captureFrame() {
 
     //ARController::logv("AndroidVideoSource::captureFrame()");
     if (deviceState == DEVICE_RUNNING) {
-        
+
         if (newFrameArrived) {
             newFrameArrived = false;
             return true;
         }
     }
-    
+
     return false;
 }
 
 void AndroidVideoSource::acceptImage(ARUint8* ptr) {
-	
+
     //ARController::logv("AndroidVideoSource::acceptImage()");
 	if (deviceState == DEVICE_RUNNING) {
         if (pixelFormat == AR_PIXEL_FORMAT_NV21 || pixelFormat == AR_PIXEL_FORMAT_420f) {
             // Nothing more to do.
         } else if (ptr && pixelFormat == AR_PIXEL_FORMAT_RGBA) {
             color_convert_common((unsigned char*)ptr, (unsigned char*)(ptr + videoWidth * videoHeight), videoWidth, videoHeight, localFrameBuffer);
-            
+
         } else {
             return;
         }
@@ -249,7 +249,7 @@ void AndroidVideoSource::acceptImage(ARUint8* ptr) {
 bool AndroidVideoSource::close() {
 
     if (deviceState == DEVICE_CLOSED) return true;
-    
+
     if (cparamLT) arParamLTFree(&cparamLT);
 
 	if (localFrameBuffer) {
@@ -260,13 +260,13 @@ bool AndroidVideoSource::close() {
         frameBufferSize = 0;
 	}
     newFrameArrived = false;
-    ar2VideoClose(gVid);
-    gVid = NULL;
+    ar2VideoClose(mAndroidVidParam);
+    mAndroidVidParam = NULL;
 
 	deviceState = DEVICE_CLOSED;
 	ARController::logv("Android Video Source closed.");
-    
+
     return true;
 }
 
-#endif
+#endif //#if TARGET_PLATFORM_ANDROID

@@ -46,24 +46,24 @@
  *******************************************************/
 
 #define _GNU_SOURCE   // asprintf()/vasprintf() on Linux.
-#include <AR/ar.h>
-#include <math.h>
 #include <stdarg.h>
 #include <ctype.h>    // tolower()
+#include <math.h>
+
 #ifdef _WIN32
-#  include <sys/timeb.h>
-#  include <direct.h> // chdir(), getcwd()
-#  ifdef _WINRT
-#  else
-#    define getcwd _getcwd
-#    include <shlobj.h> // SHGetFolderPath()
-#  endif
-#  define MAXPATHLEN MAX_PATH
+#   include <sys/timeb.h>
+#   include <direct.h> // chdir(), getcwd()
+#   ifdef _WINRT
+#   else
+#       define getcwd _getcwd
+#       include <shlobj.h> // SHGetFolderPath()
+#   endif
+#   define MAXPATHLEN MAX_PATH
 #else
-#  include <time.h>
-#  include <sys/time.h>
-#  include <unistd.h> // chdir(), getcwd(), confstr()
-#  include <sys/param.h> // MAXPATHLEN
+#   include <time.h>
+#   include <sys/time.h>
+#   include <unistd.h> // chdir(), getcwd(), confstr()
+#   include <sys/param.h> // MAXPATHLEN
 #endif
 #ifndef _WIN32
 #  include <pthread.h>
@@ -79,6 +79,8 @@
 #  endif
 #endif
 
+#include <AR/ar.h>
+
 //
 // Global required for logging functions.
 //
@@ -86,9 +88,9 @@ int arLogLevel = AR_LOG_LEVEL_DEFAULT;
 static AR_LOG_LOGGER_CALLBACK arLogLoggerCallback = NULL;
 static int arLogLoggerCallBackOnlyIfOnSameThread = 0;
 #ifndef _WIN32
-static pthread_t arLogLoggerThread;
+    static pthread_t arLogLoggerThread;
 #else
-static DWORD arLogLoggerThreadID;
+    static DWORD arLogLoggerThreadID;
 #endif
 #define AR_LOG_WRONG_THREAD_BUFFER_SIZE 4096
 static char *arLogWrongThreadBuffer = NULL;
@@ -99,27 +101,25 @@ static int arLogWrongThreadBufferCount = 0;
 // loaded as a native library by a Java virtual machine (e.g. when
 // running on Android.
 #ifdef ANDROID
+    // To call Java methods when running native code inside an Android activity,
+    // a reference is needed to the JavaVM.
+    static JavaVM* gJavaVM = NULL;
 
-// To call Java methods when running native code inside an Android activity,
-// a reference is needed to the JavaVM.
-static JavaVM *gJavaVM;
+    static char _AndroidDeviceID[32] = { '\0' };
 
-static char _AndroidDeviceID[32] = { '\0' };
+    JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
+    {
+        gJavaVM = vm;
+        return JNI_VERSION_1_6;
+    }
 
-JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
-{
-    gJavaVM = vm;
-    return JNI_VERSION_1_6;
-}
-
-/*JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *jvm, void *reserved)
-{
-    // Here is the right place to release statically-allocated resources,
-    // including any weak global references created in JNI_OnLoad().
-    // N.B. This routine is called from an arbitrary thread, and Java-side
-    // resources already invalid, so don't do any locking or class ops.
-}*/
-
+    /*JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *jvm, void *reserved)
+    {
+        // Here is the right place to release statically-allocated resources,
+        // including any weak global references created in JNI_OnLoad().
+        // N.B. This routine is called from an arbitrary thread, and Java-side
+        // resources already invalid, so don't do any locking or class ops.
+    }*/
 #endif // ANDROID
 
 ARUint32 arGetVersion(char **versionStringRef)
@@ -1329,6 +1329,18 @@ void arUtilPrintMtx16(const ARdouble mtx16[16])
 }
 
 #ifdef ANDROID
+
+    //
+    // Get a pointer to a JavaVM instance for those native C/C++ functions that only call from
+    // native code to Java code (i.e. without a preceding call from Java to native).
+    //
+
+    JavaVM* getPtrToJavaVM()
+    {
+        return(gJavaVM);
+    }
+
+
     //Call from native code to do the following in Java source:
     //    import android.provider.Settings.Secure;
     //    private String android_id = Secure.getString(getContext().getContentResolver(),

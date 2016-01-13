@@ -70,7 +70,7 @@
 
 ARToolKitVideoSource::ARToolKitVideoSource() : VideoSource() {
 
-    gVid = NULL;
+    mARToolKitVidParam = NULL;
 }
 
 const char* ARToolKitVideoSource::getName() {
@@ -79,37 +79,37 @@ const char* ARToolKitVideoSource::getName() {
 
 bool ARToolKitVideoSource::open() {
     ARController::logv(AR_LOG_LEVEL_INFO, "Opening ARToolKit video.");
-    
+
     if (deviceState != DEVICE_CLOSED) {
         ARController::logv(AR_LOG_LEVEL_ERROR, "ARWrapper::ARToolKitVideoSource::open(): error: device is already open, exiting returning false");
         return false;
     }
 
 	// Open the video path
-    gVid = ar2VideoOpen(videoConfiguration);
-    if (!gVid) {
+    mARToolKitVidParam = ar2VideoOpen(videoConfiguration);
+    if (!mARToolKitVidParam) {
         ARController::logv(AR_LOG_LEVEL_ERROR, "ARWrapper::ARToolKitVideoSource::open(): arVideoOpen unable to open connection to camera using configuration '%s', exiting returning false", videoConfiguration);
     	return false;
 	}
 
     ARController::logv(AR_LOG_LEVEL_INFO, "ARToolKit video opened connection using configuration '%s'.", videoConfiguration);
 	deviceState = DEVICE_OPEN;
-    
+
     // Find the size of the video
-	if (ar2VideoGetSize(gVid, &videoWidth, &videoHeight) < 0) {
+	if (ar2VideoGetSize(mARToolKitVidParam, &videoWidth, &videoHeight) < 0) {
         ARController::logv(AR_LOG_LEVEL_ERROR, "ARWrapper::ARToolKitVideoSource::open(): Error: unable to get video size, calling close(), exiting returning false");
         this->close();
 		return false;
 	}
-	
+
 	// Get the format in which the camera is returning pixels
-	pixelFormat = ar2VideoGetPixelFormat(gVid);
+	pixelFormat = ar2VideoGetPixelFormat(mARToolKitVidParam);
 	if (pixelFormat < 0 ) {
         ARController::logv(AR_LOG_LEVEL_ERROR, "ARWrapper::ARToolKitVideoSource::open(): Error: unable to get pixel format, calling close(), exiting returning false");
         this->close();
 		return false;
 	}
-    
+
     ARController::logv(AR_LOG_LEVEL_INFO, "Video %dx%d@%dBpp (%s).", videoWidth, videoHeight, arUtilGetPixelSize(pixelFormat), arUtilGetPixelFormatName(pixelFormat));
 
 #ifndef _WINRT
@@ -184,13 +184,13 @@ bool ARToolKitVideoSource::open() {
     // Tell arVideo what the typical focal distance will be. Note that this does NOT
     // change the actual focus, but on devices with non-fixed focus, it lets arVideo
     // choose a better set of camera parameters.
-    ar2VideoSetParami(gVid, AR_VIDEO_PARAM_IOS_FOCUS, AR_VIDEO_IOS_FOCUS_0_3M); // Default is 0.3 metres. See <AR/sys/videoiPhone.h> for allowable values.
+    ar2VideoSetParami(mARToolKitVidParam, AR_VIDEO_PARAM_IOS_FOCUS, AR_VIDEO_IOS_FOCUS_0_3M); // Default is 0.3 metres. See <AR/sys/videoiPhone.h> for allowable values.
 #endif
-    
+
     // Load the camera parameters, resize for the window and init.
     ARParam cparam;
     // Prefer internal camera parameters.
-    if (ar2VideoGetCParam(gVid, &cparam) == 0) {
+    if (ar2VideoGetCParam(mARToolKitVidParam, &cparam) == 0) {
         ARController::logv(AR_LOG_LEVEL_INFO, "Using internal camera parameters.");
     } else {
         const char cparam_name_default[] = "camera_para.dat"; // Default name for the camera parameters.
@@ -205,7 +205,7 @@ bool ARToolKitVideoSource::open() {
         } else {
             if (arParamLoad((cameraParam ? cameraParam : cparam_name_default), 1, &cparam) < 0) {
                 ARController::logv(AR_LOG_LEVEL_ERROR, "ARWrapper::ARToolKitVideoSource::open(): error-failed to load camera parameters %s, calling close(), exiting returning false",
-                                   (cameraParam ? cameraParam : cparam_name_default));        
+                                   (cameraParam ? cameraParam : cparam_name_default));
                 this->close();
                 return false;
             } else {
@@ -226,7 +226,7 @@ bool ARToolKitVideoSource::open() {
 		return false;
 	}
 
-	int err = ar2VideoCapStart(gVid);
+	int err = ar2VideoCapStart(mARToolKitVidParam);
 	if (err != 0) {
         if (err == -2) {
             ARController::logv(AR_LOG_LEVEL_ERROR, "ARWrapper::ARToolKitVideoSource::open(): error starting video-device unavailable \"%d,\" setting ARW_ERROR_DEVICE_UNAVAILABLE error state", err);
@@ -236,7 +236,7 @@ bool ARToolKitVideoSource::open() {
         }
         ARController::logv(AR_LOG_LEVEL_ERROR, "ARWrapper::ARToolKitVideoSource::open(): calling close(), exiting returning false");
         this->close();
-		return false;		
+		return false;
 	}
 
 	deviceState = DEVICE_RUNNING;
@@ -249,7 +249,7 @@ bool ARToolKitVideoSource::captureFrame() {
 
 	if (deviceState == DEVICE_RUNNING) {
 
-        AR2VideoBufferT *vbuff = ar2VideoGetImage(gVid);
+        AR2VideoBufferT *vbuff = ar2VideoGetImage(mARToolKitVidParam);
         if (vbuff && vbuff->buff) {
 			frameStamp++;
             frameBuffer = vbuff->buff;
@@ -268,30 +268,30 @@ bool ARToolKitVideoSource::close() {
         ARController::logv(AR_LOG_LEVEL_DEBUG, "ARWrapper::ARToolKitVideoSource::close(): if (deviceState == DEVICE_CLOSED) true, exiting returning true");
         return true;
     }
-    
+
 	if (deviceState == DEVICE_RUNNING) {
-        ARController::logv(AR_LOG_LEVEL_DEBUG, "ARWrapper::ARToolKitVideoSource::close(): stopping video, calling ar2VideoCapStop(gVid)");
-		int err = ar2VideoCapStop(gVid);
+        ARController::logv(AR_LOG_LEVEL_DEBUG, "ARWrapper::ARToolKitVideoSource::close(): stopping video, calling ar2VideoCapStop(mARToolKitVidParam)");
+		int err = ar2VideoCapStop(mARToolKitVidParam);
 		if (err != 0)
             ARController::logv(AR_LOG_LEVEL_ERROR, "ARWrapper::ARToolKitVideoSource::close(): Error \"%d\" stopping video", err);
-        
+
         if (cparamLT) arParamLTFree(&cparamLT);
-        
+
         deviceState = DEVICE_OPEN;
     }
-    
+
     frameBuffer = NULL;
     frameBuffer2 = NULL;
 
     ARController::logv(AR_LOG_LEVEL_INFO, "Closing ARToolKit video.");
-    if (ar2VideoClose(gVid) != 0)
+    if (ar2VideoClose(mARToolKitVidParam) != 0)
         ARController::logv(AR_LOG_LEVEL_ERROR, "ARWrapper::ARToolKitVideoSource::close(): error closing video");
-	
-    gVid = NULL;
+
+    mARToolKitVidParam = NULL;
 	deviceState = DEVICE_CLOSED; // ARToolKit video source is always ready to be opened.
 
     ARController::logv(AR_LOG_LEVEL_DEBUG, "ARWrapper::ARToolKitVideoSource::close(): exiting returning true");
 	return true;
 }
 
-#endif
+#endif //#if !TARGET_PLATFORM_ANDROID

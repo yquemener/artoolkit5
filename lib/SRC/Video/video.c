@@ -34,7 +34,7 @@
  *  Author(s): Hirokazu Kato, Philip Lamb
  *
  */
-/* 
+/*
  *   author: Hirokazu Kato ( kato@sys.im.hiroshima-cu.ac.jp )
  *
  *   Revision: 6.0   Date: 2003/09/29
@@ -42,7 +42,7 @@
 #include <stdio.h>
 #include <AR/video.h>
 
-static AR2VideoParamT   *vid = NULL;
+static AR2VideoParamT* gPlatformGenericVidParam = NULL;
 
 int arVideoGetDefaultDevice( void )
 {
@@ -85,25 +85,25 @@ int arVideoGetDefaultDevice( void )
 
 int arVideoOpen( const char *config )
 {
-    if( vid != NULL ) {
+    if( gPlatformGenericVidParam != NULL ) {
         ARLOGe("arVideoOpen: Error, video device already open.\n");
         return -1;
     }
-    vid = ar2VideoOpen( config );
-    if( vid == NULL ) return -1;
+    gPlatformGenericVidParam = ar2VideoOpen( config );
+    if( gPlatformGenericVidParam == NULL ) return -1;
 
     return 0;
 }
 
 int arVideoOpenAsync(const char *config, void (*callback)(void *), void *userdata)
 {
-    if( vid != NULL ) {
+    if( gPlatformGenericVidParam != NULL ) {
         ARLOGe("arVideoOpenAsync: Error, video device already open.\n");
         return -1;
     }
-    vid = ar2VideoOpenAsync(config, callback, userdata);
-    if( vid == NULL ) return -1;
-    
+    gPlatformGenericVidParam = ar2VideoOpenAsync(config, callback, userdata);
+    if( gPlatformGenericVidParam == NULL ) return -1;
+
     return 0;
 }
 
@@ -111,63 +111,63 @@ int arVideoClose( void )
 {
     int     ret;
 
-    if( vid == NULL ) return -1;
+    if( gPlatformGenericVidParam == NULL ) return -1;
 
-    ret = ar2VideoClose( vid );
-    vid = NULL;
+    ret = ar2VideoClose( gPlatformGenericVidParam );
+    gPlatformGenericVidParam = NULL;
 
     return ret;
 }
 
 int arVideoDispOption( void )
 {
-    if( vid == NULL ) return -1;
+    if( gPlatformGenericVidParam == NULL ) return -1;
 
-    return  ar2VideoDispOption( vid );
+    return  ar2VideoDispOption( gPlatformGenericVidParam );
 }
 
 int arVideoGetDevice( void )
 {
-    if( vid == NULL ) return -1;
-    
-    return ar2VideoGetDevice(vid);
+    if( gPlatformGenericVidParam == NULL ) return -1;
+
+    return ar2VideoGetDevice(gPlatformGenericVidParam);
 }
 
 int arVideoGetId( ARUint32 *id0, ARUint32 *id1 )
 {
-    if( vid == NULL ) return -1;
+    if( gPlatformGenericVidParam == NULL ) return -1;
 
-    return ar2VideoGetId( vid, id0, id1 );
+    return ar2VideoGetId( gPlatformGenericVidParam, id0, id1 );
 }
 
 int arVideoGetSize( int *x, int *y )
 {
-    if( vid == NULL ) return -1;
+    if( gPlatformGenericVidParam == NULL ) return -1;
 
-    return ar2VideoGetSize( vid, x, y );
+    return ar2VideoGetSize( gPlatformGenericVidParam, x, y );
 }
 
 int arVideoGetPixelSize( void )
 {
-    if( vid == NULL ) return -1;
+    if( gPlatformGenericVidParam == NULL ) return -1;
 
-    return ar2VideoGetPixelSize( vid );
+    return ar2VideoGetPixelSize( gPlatformGenericVidParam );
 }
 
 AR_PIXEL_FORMAT arVideoGetPixelFormat( void )
 {
-    if( vid == NULL ) return ((AR_PIXEL_FORMAT)-1);
+    if( gPlatformGenericVidParam == NULL ) return ((AR_PIXEL_FORMAT)-1);
 
-    return ar2VideoGetPixelFormat( vid );
+    return ar2VideoGetPixelFormat( gPlatformGenericVidParam );
 }
 
 ARUint8 *arVideoGetImage( void )
 {
     AR2VideoBufferT *buffer;
 
-    if( vid == NULL ) return NULL;
+    if( gPlatformGenericVidParam == NULL ) return NULL;
 
-    buffer = ar2VideoGetImage(vid);
+    buffer = ar2VideoGetImage(gPlatformGenericVidParam);
 	if (buffer == NULL) return (NULL);
     if( buffer->fillFlag == 0 ) return NULL;
 
@@ -176,95 +176,95 @@ ARUint8 *arVideoGetImage( void )
 
 int arVideoCapStart( void )
 {
-    if( vid == NULL ) return -1;
+    if( gPlatformGenericVidParam == NULL ) return -1;
 
-    return ar2VideoCapStart( vid );
+    return ar2VideoCapStart( gPlatformGenericVidParam );
 }
 
 int arVideoCapStartAsync(AR_VIDEO_FRAME_READY_CALLBACK callback, void *userdata)
 {
-    if( vid == NULL ) return -1;
-    
-    return ar2VideoCapStartAsync(vid, callback, userdata);
+    if( gPlatformGenericVidParam == NULL ) return -1;
+
+    return ar2VideoCapStartAsync(gPlatformGenericVidParam, callback, userdata);
 }
 
 int arVideoCapStop( void )
 {
-    if( vid == NULL ) return -1;
+    if( gPlatformGenericVidParam == NULL ) return -1;
 
-    return ar2VideoCapStop( vid );
+    return ar2VideoCapStop( gPlatformGenericVidParam );
 }
 
 int   arVideoGetParami( int paramName, int *value )
 {
     if (paramName == AR_VIDEO_GET_VERSION) return (ar2VideoGetParami(NULL, AR_VIDEO_GET_VERSION, NULL));
-                                                    
-    if( vid == NULL ) return -1;
 
-    return ar2VideoGetParami( vid, paramName, value );
+    if( gPlatformGenericVidParam == NULL ) return -1;
+
+    return ar2VideoGetParami( gPlatformGenericVidParam, paramName, value );
 }
 
 int   arVideoSetParami( int paramName, int  value )
 {
-    if( vid == NULL ) return -1;
+    if( gPlatformGenericVidParam == NULL ) return -1;
 
-    return ar2VideoSetParami( vid, paramName, value );
+    return ar2VideoSetParami( gPlatformGenericVidParam, paramName, value );
 }
 
 int   arVideoGetParamd( int paramName, double *value )
 {
-    if( vid == NULL ) return -1;
+    if( gPlatformGenericVidParam == NULL ) return -1;
 
-    return ar2VideoGetParamd( vid, paramName, value );
+    return ar2VideoGetParamd( gPlatformGenericVidParam, paramName, value );
 }
 
 int   arVideoSetParamd( int paramName, double  value )
 {
-    if( vid == NULL ) return -1;
+    if( gPlatformGenericVidParam == NULL ) return -1;
 
-    return ar2VideoSetParamd( vid, paramName, value );
+    return ar2VideoSetParamd( gPlatformGenericVidParam, paramName, value );
 }
 
 int   arVideoSaveParam( char *filename )
 {
-    if( vid == NULL ) return -1;
+    if( gPlatformGenericVidParam == NULL ) return -1;
 
-    return ar2VideoSaveParam( vid, filename );
+    return ar2VideoSaveParam( gPlatformGenericVidParam, filename );
 }
 
 int   arVideoLoadParam( char *filename )
 {
-    if( vid == NULL ) return -1;
+    if( gPlatformGenericVidParam == NULL ) return -1;
 
-    return ar2VideoLoadParam( vid, filename );
+    return ar2VideoLoadParam( gPlatformGenericVidParam, filename );
 }
 
 int arVideoSetBufferSize(const int width, const int height)
 {
-    if( vid == NULL ) return -1;
-    
-    return ar2VideoSetBufferSize( vid, width, height );
+    if( gPlatformGenericVidParam == NULL ) return -1;
+
+    return ar2VideoSetBufferSize( gPlatformGenericVidParam, width, height );
 }
 
 int arVideoGetBufferSize(int *width, int *height)
 {
-    if( vid == NULL ) return -1;
-    
-    return ar2VideoGetBufferSize( vid, width, height );
+    if( gPlatformGenericVidParam == NULL ) return -1;
+
+    return ar2VideoGetBufferSize( gPlatformGenericVidParam, width, height );
 }
 
 int arVideoGetCParam(ARParam *cparam)
 {
-    if (vid == NULL) return -1;
-    
-    return ar2VideoGetCParam(vid, cparam);
+    if (gPlatformGenericVidParam == NULL) return -1;
+
+    return ar2VideoGetCParam(gPlatformGenericVidParam, cparam);
 }
 
 int arVideoGetCParamAsync(void (*callback)(const ARParam *, void *), void *userdata)
 {
-    if (vid == NULL) return -1;
-    
-    return ar2VideoGetCParamAsync(vid, callback, userdata);;
+    if (gPlatformGenericVidParam == NULL) return -1;
+
+    return ar2VideoGetCParamAsync(gPlatformGenericVidParam, callback, userdata);;
 }
 
 // N.B. This function is duplicated in libAR, so that libAR doesn't need to
