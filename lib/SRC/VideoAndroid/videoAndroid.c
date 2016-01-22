@@ -58,7 +58,6 @@ struct _AR2VideoParamAndroidT {
     int                camera_index; // 0 = first camera, 1 = second etc.
     int                camera_face; // 0 = camera is rear facing, 1 = camera is front facing.
     float              focal_length; // metres.
-    bool               useUniqueAndroidDevID;
     int                cparamSearchInited;
     void               (*cparamSearchCallback)(const ARParam *, void *);
     void*              cparamSearchUserdata;
