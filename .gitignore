@@ -51,6 +51,7 @@ xcuserdata/
 /**/.idea
 /**/build
 /**/captures
+/android/libs
 
 #### Other VCS
 .svn/

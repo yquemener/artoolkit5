@@ -90,7 +90,7 @@ $NDK/ndk-build -j $CPUS NDK_APPLICATION_MK=jni/Application-ARWrapper.mk $1
 
 ARTK_LibsDir=libs
 
-if [ "$1" != "clean" ] ; then
+if [[ $1 != "clean" ]] ; then
 JDK_PROJS=" \
     ARSimple \
     ARSimpleInteraction \
@@ -104,7 +104,9 @@ do
 #    if [ ! -d ../EclipseProjects/${i}/libs/ ] ; then
 #        mkdir ../EclipseProjects/${i}/libs
 #    fi
-    cp -Rpvf ${ARTK_LibsDir} ../EclipseProjects/${i}/
+    if [[ $i != "ARMarkerDistance" && $i != "ARSimpleOpenGLES20" && $i != "ARDistanceOpenGLES20" ]] ; then
+        cp -Rpvf ${ARTK_LibsDir} ../EclipseProjects/${i}/
+    fi
     FirstChar=${i:0:1}
     LCFirstChar=`echo $FirstChar | tr '[:upper:]' '[:lower:]'`
     ModName=$LCFirstChar${i:1}

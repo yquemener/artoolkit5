@@ -204,7 +204,7 @@ int arPattGetIDGlobal( ARPattHandle *pattHandle, int imageProcMode, int pattDete
                 *codeMatrix = -1;
             } else {
                 errorCodeMtx = get_global_id_code(ext_patt, &codeGlobalID, dirMatrix, cfMatrix, errorCorrected);
-                
+
                 if (errorCodeMtx < 0) {
                     *codeMatrix = -1;
                 } else if (codeGlobalID == UINT64_MAX) { // Heuristic-based elimination of frequently misrecognised codes.
@@ -234,7 +234,7 @@ int arPattGetIDGlobal( ARPattHandle *pattHandle, int imageProcMode, int pattDete
             }
         }
     } else errorCodeMtx = 1;
-    
+
     // Template matching pass.
     if( pattDetectMode == AR_TEMPLATE_MATCHING_COLOR
        || pattDetectMode == AR_TEMPLATE_MATCHING_MONO
@@ -277,12 +277,12 @@ int arPattGetIDGlobal( ARPattHandle *pattHandle, int imageProcMode, int pattDete
             }
         }
     } else errorCodePatt = 1;
-    
+
     if (errorCodeMtx == 1) return (errorCodePatt);                           // pattern-mode only.
     else if (errorCodePatt == 1) return (errorCodeMtx);                      // matrix-mode only.
     else if (errorCodeMtx < 0 && errorCodePatt < 0) return (errorCodePatt);  // if mixed mode and errors in both modes, return error from pattern mode.
     else return (0);
-    
+
 }
 
 #if !AR_DISABLE_NON_CORE_FNS
@@ -824,7 +824,7 @@ int arPattGetImage( int imageProcMode, int pattDetectMode, int patt_size, int sa
             ARLOGe("Error: unsupported pixel format.\n");
             goto bail;
         }
-        
+
         for( i = 0; i < patt_size*patt_size; i++ ) {
             ext_patt[i] = ext_patt2[i] / (xdiv*ydiv);
         }
@@ -833,7 +833,7 @@ int arPattGetImage( int imageProcMode, int pattDetectMode, int patt_size, int sa
     }
 
     return 0;
-    
+
 bail:
     free(ext_patt2);
     return -1;
@@ -881,13 +881,13 @@ int arPattGetImage2( int imageProcMode, int pattDetectMode, int patt_size, int s
               + (local[1][1] - local[2][1])*(local[1][1] - local[2][1]));
     ly2 = (int)((local[3][0] - local[0][0])*(local[3][0] - local[0][0])
               + (local[3][1] - local[0][1])*(local[3][1] - local[0][1]));
-    
+
     // Take the longest two adjacent sides, and calculate the length of those sides which is pattern space (actually the square of the length).
     if( lx2 > lx1 ) lx1 = lx2;
     if( ly2 > ly1 ) ly1 = ly2;
     lxPatt = (int)(lx1*pattRatio*pattRatio);
     lyPatt = (int)(ly1*pattRatio*pattRatio);
-    
+
     // Work out how many samples ("divisions") to take of the pattern space. Start with the pattern size itself,
     // but scale up by factors of two, until the number of divisions exceeds the number of pixels in the pattern space
     // on that side, or we reach the maximum sample size.
@@ -1521,7 +1521,7 @@ int arPattGetImage2( int imageProcMode, int pattDetectMode, int patt_size, int s
     }
 
     return 0;
-    
+
 bail:
     free(ext_patt2);
     return -1;
@@ -1692,6 +1692,143 @@ static void get_cpara( ARdouble world[4][2], ARdouble vertex[4][2],
     arMatrixFree( c );
 }
 
+#define CCF_OPTIM
+
+#ifndef CCF_OPTIM
+static int legacy_template_mono_matching_algo( ARPattHandle *pattHandle, int size, int *input, ARdouble datapow,
+                                               int *code, int *dir, ARdouble *cf )
+{
+    int res1 = -1, res2 = -1;
+    ARdouble max = _0_0;
+    for ( int ii = 0, indx1 = -1; ii < pattHandle->patt_num; ii++ ) {
+        indx1++;
+        while ( pattHandle->pattf[indx1] == 0 ) indx1++;
+        if ( pattHandle->pattf[indx1] == 2 ) continue;
+        for ( int jj = 0, sum = 0, sum2 = 0; jj < 4; jj++ ) {
+            for ( int kk = 0; kk < size * size; kk++)
+                sum += input[kk] * pattHandle->pattBW[indx1 * 4 + jj][kk];
+            sum2 = sum / pattHandle->pattpowBW[indx1 * 4 + jj] / datapow;
+            if ( sum2 > max ) {
+                max = sum2;
+                res1 = jj;
+                res2 = indx1;
+            }
+        }
+    }
+    *code = res2;
+    *dir  = res1;
+    *cf   = max;
+
+    free( input );
+    return 0;
+}
+#endif //#ifndef CCF_OPTIM
+
+#ifdef CCF_OPTIM
+static int two_phase_template_mono_matching_algo( ARPattHandle *pattHandle, int size, int *input, ARdouble datapow,
+                                                  int *code, int *dir, ARdouble *cf )
+{
+    // TODO: use this implementation when the number
+    //   of markers exceeds some given threshold that
+    //   justifies the overhead
+
+    //First pass at low resolution
+
+    double* scores1;
+    arMalloc(scores1, double, pattHandle->patt_num * 4);
+    double maxscore1 = _0_0;
+
+    for ( int ii = 0, indx1 = -1; ii < pattHandle->patt_num; ii++ ) {
+        indx1++;
+        while( pattHandle->pattf[indx1] == 0 ) indx1++;
+        if ( pattHandle->pattf[indx1] == 2 ) continue;
+        for( int jj = 0, sum = 0; jj < 4; jj++ ) {
+            for (int x = 0; x < size; x += 4) { //skipping to every 4th pixel
+                for (int y = 0, indx2 = 0; y < size; y += 4) {
+                    indx2 = x * size + y;
+                    sum += input[indx2] * pattHandle->pattBW[indx1 * 4 + jj][indx2];
+                }
+            }
+            scores1[indx1 * 4 + jj] = 16 * sum / pattHandle->pattpowBW[indx1 * 4 + jj];  //inflate score estimate by 16x
+            maxscore1 = MAX(maxscore1, scores1[indx1 * 4 + jj]);
+        }
+    }
+
+    //Second pass... only touch those which had a large score
+    //in the first pass
+    //
+    //Use a threshold that is lower than the max in case we under/overestimated
+    //the match quality in the first pass
+    //
+    //  TODO: threshold would ideally be a percentile... e.g. keep the top 10% of
+    //    detected markers... but needs a heap or some other trick for efficient implementation.
+
+    double thresh1 = 0.75 * maxscore1;
+    double* scores2;
+    arMalloc(scores2, double, pattHandle->patt_num * 4);
+    double maxscore2 = _0_0;
+
+    for ( int ii = 0, indx1 = -1; ii < pattHandle->patt_num; ii++ ) {
+        indx1++;
+        while( pattHandle->pattf[indx1] == 0 ) indx1++;
+        if ( pattHandle->pattf[indx1] == 2 ) continue;
+        for( int jj = 0, sum; jj < 4; jj++ ) {
+            if (scores1[ 4 * indx1 + jj] > thresh1) {
+                sum = 0;
+                for ( int x = 0; x < size; x += 2) {  //skipping to every other pixel
+                    for ( int y = 0; y < size; y += 2) {
+                        int indx2 = x * size + y;
+                        sum += input[indx2] * pattHandle->pattBW[indx1 * 4 + jj][indx2];
+                    }
+                }
+                scores2[indx1 * 4 + jj] = 4 * sum / pattHandle->pattpowBW[indx1 * 4 + jj]; //inflate score estimate by 4x
+                maxscore2 = MAX(maxscore2, scores2[indx1 * 4 + jj]);
+            }
+            else
+            {
+                scores2[4 * indx1 + jj] = _0_0;
+            }
+        }
+    }
+
+    //Finally compute the full correlation for whomever is left
+
+    double thresh2 = 0.75 * maxscore2;
+    int res1 = -1, res2 = -1;
+    double maxscore3 = _0_0;
+
+    for ( int ii = 0, indx1 = -1; ii < pattHandle->patt_num; ii++ ) {
+        indx1++;
+        while ( pattHandle->pattf[indx1] == 0 ) indx1++;
+        if ( pattHandle->pattf[indx1] == 2 ) continue;
+        for ( int jj = 0, sum = 0, sum2 = 0; jj < 4; jj++ ) {
+            if (scores2[indx1 * 4 + jj] > thresh2)
+            {
+                for ( int ii = 0; ii < size * size; ii++)
+                    sum += input[ii] * pattHandle->pattBW[indx1 * 4 + jj][ii];
+                sum2 = sum / pattHandle->pattpowBW[indx1 * 4 + jj];
+                if ( sum2 > maxscore3 ) {
+                    maxscore3 = sum2;
+                    res1 = jj;
+                    res2 = indx1;
+                }
+            }
+        }
+    }
+
+    *code = res2;
+    *dir  = res1;
+    //Only need to do this division once since it is constant across candidate markers
+    *cf   = maxscore3 / datapow;
+
+    free( input );
+    free( scores1 );
+    free( scores2 );
+    return 0;
+}//end: static int two_phase_template_mono_matching_algo( ARPattHandle *pattHandle, int size, int *input, ARdouble datapow,
+ //                                                       int *code, int *dir, ARdouble *cf )
+#endif //#ifdef CCF_OPTIM
+
 static int pattern_match( ARPattHandle *pattHandle, int mode, ARUint8 *data, int size, int *code, int *dir, ARdouble *cf )
 {
     int   *input;
@@ -1701,30 +1838,32 @@ static int pattern_match( ARPattHandle *pattHandle, int mode, ARUint8 *data, int
     ARdouble datapow;
     ARdouble sum2, max;
 
-    if( pattHandle == NULL ) {
+    if ( pattHandle == NULL ) {
         *code = 0;
         *dir  = 0;
         *cf   = -_1_0;
         return -1;
     }
 
-    if( mode == AR_TEMPLATE_MATCHING_COLOR ) {
+    if ( (mode != AR_TEMPLATE_MATCHING_COLOR) && (mode != AR_TEMPLATE_MATCHING_MONO) )
+        return -1;
+
+    if ( mode == AR_TEMPLATE_MATCHING_COLOR ) {
 
         arMalloc( input, int, size*size*3 );
         sum = ave = 0;
-        for(i=0;i<size*size*3;i++) {
-            ave += (255-data[i]);
+        for (i = 0; i < size * size * 3; i++) {
+            ave += (255 - data[i]);
         }
         ave /= (size*size*3);
 
-        for(i=0;i<size*size*3;i++) {
-            input[i] = (255-data[i]) - ave;
+        for (i = 0; i < size * size * 3; i++) {
+            input[i] = (255 - data[i]) - ave;
             sum += input[i]*input[i];
         }
 
         datapow = SQRT( (ARdouble)sum );
-        //if( datapow == 0.0 ) {
-        if( datapow/(size*SQRT_3_0) < AR_PATT_CONTRAST_THRESH1 ) {
+        if ( (datapow / (size * SQRT_3_0)) < AR_PATT_CONTRAST_THRESH1 ) {
             *code = 0;
             *dir  = 0;
             *cf   = -_1_0;
@@ -1735,15 +1874,15 @@ static int pattern_match( ARPattHandle *pattHandle, int mode, ARUint8 *data, int
         res1 = res2 = -1;
         k = -1; // Best match in search space.
         max = _0_0;
-        for( l = 0; l < pattHandle->patt_num; l++ ) { // Consider the whole search space.
+        for ( l = 0; l < pattHandle->patt_num; l++ ) { // Consider the whole search space.
             k++;
-            while( pattHandle->pattf[k] == 0 ) k++; // No pattern at this slot.
-            if( pattHandle->pattf[k] == 2 ) continue; // Pattern at this slot is deactivated.
-            for( j = 0; j < 4; j++ ) { // The 4 rotated variants of the pattern.
+            while ( pattHandle->pattf[k] == 0 ) k++; // No pattern at this slot.
+            if ( pattHandle->pattf[k] == 2 ) continue; // Pattern at this slot is deactivated.
+            for ( j = 0; j < 4; j++ ) { // The 4 rotated variants of the pattern.
                 sum = 0;
-                for(i=0;i<size*size*3;i++) sum += input[i]*pattHandle->patt[k*4 + j][i]; // Correlation operation.
-                sum2 = sum / pattHandle->pattpow[k*4 + j] / datapow;
-                if( sum2 > max ) { max = sum2; res1 = j; res2 = k; }
+                for (i = 0; i < size * size * 3; i++) sum += input[i] * pattHandle->patt[k * 4 + j][i]; // Correlation operation.
+                sum2 = sum / pattHandle->pattpow[k * 4 + j] / datapow;
+                if ( sum2 > max ) { max = sum2; res1 = j; res2 = k; }
             }
         }
         *dir  = res1;
@@ -1753,23 +1892,22 @@ static int pattern_match( ARPattHandle *pattHandle, int mode, ARUint8 *data, int
         free( input );
         return 0;
     }
-    else if( mode == AR_TEMPLATE_MATCHING_MONO ) {
+    else if ( mode == AR_TEMPLATE_MATCHING_MONO ) {
 
-        arMalloc( input, int, size*size );
+        arMalloc( input, int, size * size );
         sum = ave = 0;
-        for(i=0;i<size*size;i++) {
-            ave += (255-data[i]);
+        for ( int ii = 0; ii < size * size; ii++ ) {
+            ave += (255 - data[ii]);
         }
-        ave /= (size*size);
+        ave /= (size * size);
 
-        for(i=0;i<size*size;i++) {
-            input[i] = (255-data[i]) - ave;
-            sum += input[i]*input[i];
+        for ( int ii = 0; ii < size * size; ii++ ) {
+            input[ii] = (255 - data[ii]) - ave;
+            sum += input[ii] * input[ii];
         }
 
         datapow = SQRT( (ARdouble)sum );
-        //if( datapow == 0.0 ) {
-        if( datapow/size < AR_PATT_CONTRAST_THRESH1 ) {
+        if ( datapow/size < AR_PATT_CONTRAST_THRESH1 ) {
             *code = 0;
             *dir  = 0;
             *cf   = -_1_0;
@@ -1777,31 +1915,15 @@ static int pattern_match( ARPattHandle *pattHandle, int mode, ARUint8 *data, int
             return -2; // Insufficient contrast.
         }
 
-        res1 = res2 = -1;
-        k = -1;
-        max = _0_0;
-        for( l = 0; l < pattHandle->patt_num; l++ ) {
-            k++;
-            while( pattHandle->pattf[k] == 0 ) k++;
-            if( pattHandle->pattf[k] == 2 ) continue;
-            for( j = 0; j < 4; j++ ) {
-                sum = 0;
-                for(i=0;i<size*size;i++) sum += input[i]*pattHandle->pattBW[k*4 + j][i];
-                sum2 = sum / pattHandle->pattpowBW[k*4 + j] / datapow;
-                if( sum2 > max ) { max = sum2; res1 = j; res2 = k; }
-            }
-        }
-        *dir  = res1;
-        *code = res2;
-        *cf   = max;
-
-        free( input );
-        return 0;
-    }
-    else {
-        return -1;
-    }
-}
+#       ifndef CCF_OPTIM
+        return legacy_template_mono_matching_algo( pattHandle, size, input, datapow, code, dir, cf );
+#       else //of #ifndef CCF_OPTIM
+        return two_phase_template_mono_matching_algo( pattHandle, size, input, datapow,
+                                                      code, dir, cf );
+#       endif //#else of #ifndef CCF_OPTIM
+    } //end: else if ( mode == AR_TEMPLATE_MATCHING_MONO ) {
+    return -1;
+}//end: static int pattern_match( ARPattHandle *pattHandle, int mode, ARUint8 *data, int size, int *code, int *dir, ARdouble *cf )
 
 static int decode_bch(const AR_MATRIX_CODE_TYPE matrixCodeType, const uint64_t in, uint8_t recd127[127], uint64_t *out_p)
 {
@@ -1817,7 +1939,7 @@ static int decode_bch(const AR_MATRIX_CODE_TYPE matrixCodeType, const uint64_t i
     const int bch_127_index_of[128] = {-1, 0, 1, 7, 2, 14, 8, 56, 3, 63, 15, 31, 9, 90, 57, 21, 4, 28, 64, 67, 16, 112, 32, 97, 10, 108, 91, 70, 58, 38, 22, 47, 5, 54, 29, 19, 65, 95, 68, 45, 17, 43, 113, 115, 33, 77, 98, 117, 11, 87, 109, 35, 92, 74, 71, 79, 59, 104, 39, 100, 23, 82, 48, 119, 6, 126, 55, 13, 30, 62, 20, 89, 66, 27, 96, 111, 69, 107, 46, 37, 18, 53, 44, 94, 114, 42, 116, 76, 34, 86, 78, 73, 99, 103, 118, 81, 12, 125, 88, 61, 110, 26, 36, 106, 93, 52, 75, 41, 72, 85, 80, 102, 60, 124, 105, 25, 40, 51, 101, 84, 24, 123, 83, 50, 49, 122, 120, 121};
     int i, j, u, q, t2, count = 0, syn_error = 0;
 	int elp[20][18], d[20], l[20], u_lu[20], s[19], loc[127], reg[10]; // int elp[t2 + 2, t2], d[t2 + 2], l[t2 + 2], u_lu[t2 + 2], s[t2 + 1], loc[n], reg[t + 1].
-    
+
     if (matrixCodeType == AR_MATRIX_CODE_4x4_BCH_13_9_3 || matrixCodeType == AR_MATRIX_CODE_4x4_BCH_13_5_5) {
         if (matrixCodeType == AR_MATRIX_CODE_4x4_BCH_13_9_3) {
             t = 1; k = 9;
@@ -1848,8 +1970,8 @@ static int decode_bch(const AR_MATRIX_CODE_TYPE matrixCodeType, const uint64_t i
 #endif
         return (-1); // Unsupported code.
     }
-    
-    
+
+
     /*
      * Simon Rockliff's implementation of Berlekamp's algorithm.
      * Copyright (c) 1994-7,  Robert Morelos-Zaragoza. All rights reserved.
@@ -1876,12 +1998,12 @@ static int decode_bch(const AR_MATRIX_CODE_TYPE matrixCodeType, const uint64_t i
      * t = error correcting capability (max. no. of errors the code corrects)
      * length = length of the BCH code
      * n = 2**m - 1 = size of the multiplicative group of GF(2**m)
-     * alpha_to [] = log table of GF(2**m) 
+     * alpha_to [] = log table of GF(2**m)
      * index_of[] = antilog table of GF(2**m)
-     * recd[] = coefficients of the received polynomial 
+     * recd[] = coefficients of the received polynomial
      */
 	t2 = 2 * t;
-    
+
 	/* first form the syndromes */
 	for (i = 1; i <= t2; i++) {
 		s[i] = 0;
@@ -1891,7 +2013,7 @@ static int decode_bch(const AR_MATRIX_CODE_TYPE matrixCodeType, const uint64_t i
 		if (s[i] != 0) syn_error = 1; /* set error flag if non-zero syndrome */
 		s[i] = index_of[s[i]]; /* convert syndrome from polynomial form to index form  */
 	}
-    
+
 	if (syn_error) {	/* if there are errors, try to correct them */
 		/*
 		 * Compute the error location polynomial via the Berlekamp
@@ -1900,7 +2022,7 @@ static int decode_bch(const AR_MATRIX_CODE_TYPE matrixCodeType, const uint64_t i
 		 * u='mu'+1 and 'mu' (the Greek letter!) is the step number
 		 * ranging from -1 to 2*t (see L&C),  l[u] is the degree of
 		 * the elp at that step, and u_l[u] is the difference between
-		 * the step number and the degree of the elp. 
+		 * the step number and the degree of the elp.
 		 */
 		/* initialise table entries */
 		d[0] = 0;			/* index form */
@@ -1916,7 +2038,7 @@ static int decode_bch(const AR_MATRIX_CODE_TYPE matrixCodeType, const uint64_t i
 		u_lu[0] = -1;
 		u_lu[1] = 0;
 		u = 0;
-        
+
 		do {
 			u++;
 			if (d[u] == -1) {
@@ -1928,7 +2050,7 @@ static int decode_bch(const AR_MATRIX_CODE_TYPE matrixCodeType, const uint64_t i
 			} else {
                 /*
                  * search for words with greatest u_lu[q] for
-                 * which d[q]!=0 
+                 * which d[q]!=0
                  */
 				q = u - 1;
 				while ((d[q] == -1) && (q > 0)) q--;
@@ -1941,15 +2063,15 @@ static int decode_bch(const AR_MATRIX_CODE_TYPE matrixCodeType, const uint64_t i
                             q = j;
                     } while (j > 0);
 				}
-                
+
 				/*
 				 * have now found q such that d[u]!=0 and
-				 * u_lu[q] is maximum 
+				 * u_lu[q] is maximum
 				 */
 				/* store degree of new elp polynomial */
 				if (l[u] > l[q] + u - q) l[u + 1] = l[u];
 				else l[u + 1] = l[q] + u - q;
-                
+
 				/* form new elp(x) */
 				for (i = 0; i < t2; i++) elp[u + 1][i] = 0;
 				for (i = 0; i <= l[q]; i++) {
@@ -1961,9 +2083,9 @@ static int decode_bch(const AR_MATRIX_CODE_TYPE matrixCodeType, const uint64_t i
 				}
 			}
 			u_lu[u + 1] = u - l[u + 1];
-            
+
 			/* form (u+1)th discrepancy */
-			if (u < t2) {	
+			if (u < t2) {
                 /* no discrepancy computed on last iteration */
                 if (s[u + 1] != -1) d[u + 1] = alpha_to[s[u + 1]];
                 else d[u + 1] = 0;
@@ -1973,11 +2095,11 @@ static int decode_bch(const AR_MATRIX_CODE_TYPE matrixCodeType, const uint64_t i
                 d[u + 1] = index_of[d[u + 1]]; /* put d[u+1] into index form */
 			}
 		} while ((u < t2) && (l[u + 1] <= t));
-        
+
 		u++;
 		if (l[u] <= t) { /* Can correct errors */
 			for (i = 0; i <= l[u]; i++) elp[u][i] = index_of[elp[u][i]]; /* put elp into index form */
-            
+
 			/* Chien search: find roots of the error location polynomial */
 			for (i = 1; i <= l[u]; i++) reg[i] = elp[u][i];
 			count = 0;
@@ -2013,7 +2135,7 @@ static int decode_bch(const AR_MATRIX_CODE_TYPE matrixCodeType, const uint64_t i
             return (-1);
         }
 	} // End syn_error.
-    
+
     // Pack the result into *out_p. Data bits begin with LSB at recd[length - k] through to MSB at recd[length - 1];
     *out_p = 0LL;
     out_bit = 1LL;
@@ -2021,7 +2143,7 @@ static int decode_bch(const AR_MATRIX_CODE_TYPE matrixCodeType, const uint64_t i
         *out_p += (uint64_t)recd[i] * out_bit;
         out_bit <<= 1;
     }
-    
+
     if (syn_error) return (l[u]);
     else return (0);
 }
@@ -2214,7 +2336,7 @@ static int get_matrix_code( ARUint8 *data, int size, int *code_out_p, int *dir, 
         ARLOG("\n");
 #endif
     }
-    
+
 #if DEBUG_PATT_GETID
     ARLOG("Contrast = %d\n", contrastMin);
 #endif
@@ -2226,7 +2348,7 @@ static int get_matrix_code( ARUint8 *data, int size, int *code_out_p, int *dir, 
             *code_out_p = -1;
             *cf = -_1_0;
             return (-4); // EDC fail.
-        } 
+        }
     } else if (matrixCodeType == AR_MATRIX_CODE_3x3_HAMMING63) {
         code = hamming63DecoderTable[codeRaw];
         if (errorCorrected) *errorCorrected = hamming63DecoderTableErrorCorrected[codeRaw];
@@ -2247,7 +2369,7 @@ static int get_matrix_code( ARUint8 *data, int size, int *code_out_p, int *dir, 
     } else {
         code = codeRaw;
     }
-    
+
     *code_out_p = (int)code;
     return 0;
 }
@@ -2262,7 +2384,7 @@ static int get_global_id_code( ARUint8 *data, uint64_t *code_out_p, int *dir_p, 
     int      i, j, ret, bit;
     uint64_t code;
     uint8_t  recd127[127];
-    
+
 	// Look at corners of unwarped marker pattern space to work out threshhold.
     corner[0] = 0;
     corner[1] = (AR_GLOBAL_ID_OUTER_SIZE - 1)*AR_GLOBAL_ID_OUTER_SIZE;
@@ -2283,7 +2405,7 @@ static int get_global_id_code( ARUint8 *data, uint64_t *code_out_p, int *dir_p, 
 #if DEBUG_PATT_GETID
     ARLOG("max=%d, min=%d, thresh=%d  ", max, min, thresh);
 #endif
-    
+
 	// Look at corners to work out which direction pattern is facing.
 	// An unrotated pattern has 1 in top-left corner, 1 in bottom-left corner,
 	// and 0 in bottom-right corner, where 1 is a pixel less than the threshhold
@@ -2300,7 +2422,7 @@ static int get_global_id_code( ARUint8 *data, uint64_t *code_out_p, int *dir_p, 
         *cf   = -_1_0;
         return -3; // Bad barcode.
     }
-    
+
 	// Calculate the matrix code.
 	// The 12 pixels forming the corners (used to determine which direction
     // the marker is facing) are ignored.
@@ -2361,7 +2483,7 @@ static int get_global_id_code( ARUint8 *data, uint64_t *code_out_p, int *dir_p, 
             }
         }
     }
-    
+
 #if DEBUG_PATT_GETID
     ARLOG("Contrast = %d\n", contrastMin);
 #endif
