@@ -71,9 +71,11 @@
 #    include <sys/errno.h>
 #  endif
 #endif
+#include <stdbool.h>
 #include <AR/config.h>
 #include <AR/arConfig.h>
 #ifdef __ANDROID__
+#  include <sys/system_properties.h>
 #  include <jni.h>
 #  include <android/log.h>
 #endif
@@ -1925,6 +1927,18 @@ void arUtilPrintTransMat(const ARdouble trans[3][4]);
 void arUtilPrintMtx16(const ARdouble mtx16[16]);
 
 #ifdef ANDROID
+    //Definition of constant used to determine the size of the device_id string for both getting
+    //and setting camera calibration data.
+    //PROP_VALUE_MAX defined in <sys/system_properties.h>. 3 properties, a possible unique device id plus '/' separators.
+#   define DEVICE_ID_STR_LEN (PROP_VALUE_MAX * 4 + 2)
+#   define UNIQUE_DEVICE_ID_PREAMBLE "ANDROID_ID:"
+
+    /*!
+    @function
+    @abstract   Returns a pointer to the current JavaVM instance from native code.
+    */
+    JavaVM* getPtrToJavaVM();
+
     //Call from native code to do the following in Java source:
     //    import android.provider.Settings.Secure;
     //    private String android_id = Secure.getString(getContext().getContentResolver(),

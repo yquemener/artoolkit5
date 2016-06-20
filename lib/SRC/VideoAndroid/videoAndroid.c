@@ -34,13 +34,13 @@
  *  Author(s): Philip Lamb
  *
  */
-
-#include <AR/video.h>
 #include <stdbool.h>
+#include <ctype.h>
+#include <AR/video.h> // This probably needs to be included before the use of
+                      // AR_VIDEO_ANDROID_ENABLE_NATIVE_CAMERA
 #if AR_VIDEO_ANDROID_ENABLE_NATIVE_CAMERA
 #  include <sys/time.h> // gettimeofday()
 #endif
-
 #include "android_os_build_codes.h"
 #include "../Video/cparamSearch.h"
 #if AR_VIDEO_ANDROID_ENABLE_NATIVE_CAMERA
@@ -50,19 +50,20 @@
 #include <dlfcn.h>
 
 struct _AR2VideoParamAndroidT {
-    char               device_id[PROP_VALUE_MAX*3+2]; // From <sys/system_properties.h>. 3 properties plus separators.
-    int                width;
-    int                height;
-    AR_PIXEL_FORMAT    format;
-    int                camera_index; // 0 = first camera, 1 = second etc.
-    int                camera_face; // 0 = camera is rear facing, 1 = camera is front facing.
-    float              focal_length; // metres.
-    void             (*cparamSearchCallback)(const ARParam *, void *);
-    void              *cparamSearchUserdata;
+    char            device_id[DEVICE_ID_STR_LEN]; // From <sys/system_properties.h>, 3 properties plus separators, 
+                                                  // plus a possible unique device id and a '/' separator.
+    int             width;
+    int             height;
+    AR_PIXEL_FORMAT format;
+    int             camera_index; // 0 = first camera, 1 = second etc.
+    int             camera_face; // 0 = camera is rear facing, 1 = camera is front facing.
+    float           focal_length; // metres.
+    void            (*cparamSearchCallback)(const ARParam *, void *);
+    void            *cparamSearchUserdata;
 #if AR_VIDEO_ANDROID_ENABLE_NATIVE_CAMERA
     VIDEO_ANDROID_NATIVE_CAPTURE *nativeCapture;
-    AR2VideoBufferT    buffer;
-    bool               capturing;
+    AR2VideoBufferT buffer;
+    bool            capturing;
 #endif
 };
 
@@ -87,51 +88,70 @@ int ar2VideoDispOptionAndroid( void )
 
 AR2VideoParamAndroidT *ar2VideoOpenAndroid( const char *config )
 {
-    char                     *cacheDir = NULL;
-    AR2VideoParamAndroidT    *vid;
-    const char               *a;
-    char                      line[1024];
+    ARLOGi("ar2VideoOpenAndroid(const char *config): called\n");
+    static const char DEVICE_ANDROID_OPT[] = "-device=android";
+    static const char FORMAT_OPT[] = "-format=";
+    static const char PIXEL_FORMAT_RGBA[] = "rgba";
+    static const char PIXEL_FORMAT_NV21[] = "nv21";
+    static const char PIXEL_FORMAT_420F[] = "420f";
+    static const char PIXEL_FORMAT_NV12[] = "nv12";
+    static const char WIDTH_OPT[] = "-width=";
+    static const char HEIGHT_OPT[] = "-height=";
+    static const char CACHE_DIR_OPT[] = "-cachedir=";
+    static const char SOURCE_OPT[] = "-source=";
+    static const char CAM_CALIB_BY_DEV_ID_OPT[] = "-camcalibbydevid";
+
+    char                  *cacheDir = NULL;
+    AR2VideoParamAndroidT *vid;
+    char                  *a;
+    char                  line[1024];
     int err_i = 0;
     int i;
     int width = 0, height = 0;
+    bool camCalibByDevID = false;
     
     arMallocClear( vid, AR2VideoParamAndroidT, 1 );
     
-    a = config;
-    if( a != NULL) {
+    for (a = (char*)config; *a != '\0'; ++a)
+        *a = tolower(*a);
+    a = (char*)config;
+
+    if ( a != NULL ) {
         for(;;) {
-            while( *a == ' ' || *a == '\t' ) a++;
-            if( *a == '\0' ) break;
+            while ( (*a == ' ') || (*a == '\t') ) a++;
+            if ( *a == '\0' ) break;
             
             if (sscanf(a, "%s", line) == 0) break;
-            if( strcmp( line, "-device=Android" ) == 0 ) {
-            } else if( strncmp( line, "-width=", 7 ) == 0 ) {
+            if ( strcmp( line, DEVICE_ANDROID_OPT/*"-device=Android"*/ ) == 0 ) {
+            } else if ( strncmp( line, WIDTH_OPT/*"-width="*/, (sizeof(WIDTH_OPT) - 1) ) == 0 ) {
                 if( sscanf( &line[7], "%d", &width ) == 0 ) {
                     ARLOGe("Error: Configuration option '-width=' must be followed by width in integer pixels.\n");
                     err_i = 1;
                 }
-            } else if( strncmp( line, "-height=", 8 ) == 0 ) {
+            } else if ( strncmp( line, HEIGHT_OPT/*"-height="*/, (sizeof(HEIGHT_OPT) - 1) ) == 0 ) {
                 if( sscanf( &line[8], "%d", &height ) == 0 ) {
                     ARLOGe("Error: Configuration option '-height=' must be followed by height in integer pixels.\n");
                     err_i = 1;
                 }
-            } else if( strncmp( line, "-format=", 8 ) == 0 ) {
-                if (strcmp(line+8, "0") == 0) {
+            } else if ( strncmp( line, FORMAT_OPT/*"-format="*/, (sizeof(FORMAT_OPT) - 1) ) == 0 ) {
+                char* formatArgOffset = line + (sizeof(FORMAT_OPT) - 1);
+                if (strcmp(formatArgOffset, "0") == 0) {
                     vid->format = 0;
                     ARLOGi("Requesting images in system default format.\n");
-                } else if (strcmp(line+8, "RGBA") == 0) {
+                } else if (strcmp(formatArgOffset, PIXEL_FORMAT_RGBA/*"RGBA"*/) == 0) {
                     vid->format = AR_PIXEL_FORMAT_RGBA;
                     ARLOGi("Requesting images in RGBA format.\n");
-                } else if (strcmp(line+8, "NV21") == 0) {
+                } else if (strcmp(formatArgOffset, PIXEL_FORMAT_NV21/*"NV21"*/) == 0) {
                     vid->format = AR_PIXEL_FORMAT_NV21;
                     ARLOGi("Requesting images in NV21 format.\n");
-                } else if (strcmp(line+8, "420f") == 0 || strcmp(line+8, "NV12") == 0) {
+                } else if (strcmp(formatArgOffset, PIXEL_FORMAT_420F/*"420f"*/) == 0 ||
+                           strcmp(formatArgOffset, PIXEL_FORMAT_NV12/*"NV12"*/) == 0) {
                     vid->format = AR_PIXEL_FORMAT_420f;
                     ARLOGi("Requesting images in 420f/NV12 format.\n");
                 } else {
-                    ARLOGe("Ignoring request for unsupported video format '%s'.\n", line+8);
+                    ARLOGe("Ignoring request for unsupported video format '%s'.\n", formatArgOffset);
                 }
-            } else if (strncmp(a, "-cachedir=", 10) == 0) {
+            } else if ( strncmp(a, CACHE_DIR_OPT/*"-cachedir="*/, (sizeof(CACHE_DIR_OPT) - 1) ) == 0 ) {
                 // Attempt to read in pathname, allowing for quoting of whitespace.
                 a += 10; // Skip "-cachedir=" characters.
                 if (*a == '"') {
@@ -156,23 +176,25 @@ AR2VideoParamAndroidT *ar2VideoOpenAndroid( const char *config )
                     cacheDir = strdup(line);
                 }
 #if AR_VIDEO_ANDROID_ENABLE_NATIVE_CAMERA
-            } else if( strncmp( line, "-source=", 8 ) == 0 ) {
+            } else if ( strncmp( line, SOURCE_OPT/*"-source="*/, (sizof(SOURCE_OPT) - 1) ) == 0 ) {
                 if( sscanf( &line[8], "%d", &vid->camera_index ) == 0 ) err_i = 1;
 #endif
+            } else if ( strncmp( line, CAM_CALIB_BY_DEV_ID_OPT/*"-CamCalibByDevID"*/, (sizeof(CAM_CALIB_BY_DEV_ID_OPT) - 1) ) == 0 ) {
+                camCalibByDevID = true;
             } else {
                 err_i = 1;
             }
             
             if (err_i) {
-				ARLOGe("Error: Unrecognised configuration option '%s'.\n", a);
+				ARLOGe("ar2VideoOpenAndroid(): Error - unrecognised configuration option '%s'\n", a);
                 ar2VideoDispOptionAndroid();
                 goto bail;
 			}
             
-            while( *a != ' ' && *a != '\t' && *a != '\0') a++;
-        }
+            //Strip off just processed char string from first char and to the right
+            while ( (*a != ' ') && (*a != '\t') && (*a != '\0') ) a++;
+        } // end: for(;;)
     }
-    
     
     // Initial state.
     if (!vid->format) vid->format = AR_INPUT_ANDROID_PIXEL_FORMAT;
@@ -192,7 +214,20 @@ AR2VideoParamAndroidT *ar2VideoOpenAndroid( const char *config )
     vid->device_id[len] = '/';
     len++;
     len += __system_property_get(ANDROID_OS_BUILD_BOARD, vid->device_id + len);
-    
+    //camCalibByDevID = true; //Uncomment this line for bench testing new Camera Calibration lookup by unique Android device ID
+    if (camCalibByDevID) {
+        char *androidDevID = arUtilGetAndroidDevID();
+        if (NULL != androidDevID)
+        {
+            ARLOGi("ar2VideoOpenAndroid(char*): adding ANDROID generated unique device ID to index file");
+            vid->device_id[len] = '/';
+            len++;
+            strcpy(vid->device_id + len, UNIQUE_DEVICE_ID_PREAMBLE);
+            strcat(vid->device_id + len, androidDevID);
+            ARLOGi("ar2VideoOpenAndroid(char*): final device_id char array: %s", vid->device_id);
+        }
+    }
+
 #if AR_VIDEO_ANDROID_ENABLE_NATIVE_CAMERA
     // Open the camera connection. Until this is done, we can't set any properties of the stream.
     if (!(vid->nativeCapture = videoAndroidNativeCaptureOpen(vid->camera_index))) {
@@ -270,7 +305,7 @@ bail:
 done:
     free(cacheDir);
     return (vid);
-}
+} // end: AR2VideoParamAndroidT *ar2VideoOpenAndroid( const char *config )
 
 int ar2VideoCloseAndroid( AR2VideoParamAndroidT *vid )
 {

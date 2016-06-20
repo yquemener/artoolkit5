@@ -362,7 +362,7 @@ AR2VideoParamV4L2T *ar2VideoOpenV4L2(const char *config)
             else if( strcmp( line, "-device=LinuxV4L2" ) == 0 )    {
             }
             else {
-                ARLOGe("Error: unrecognised configuration option '%s'.\n", a);
+                ARLOGe("ar2VideoOpenV4L2(): Error - unrecognised configuration option '%s'\n", a);
                 ar2VideoDispOptionV4L2();
                 free( vid );
                 return 0;

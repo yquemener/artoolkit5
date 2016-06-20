@@ -82,6 +82,7 @@ static int ar2VideoGetDeviceWithConfig(const char *config, const char **configSt
     
     if (configStringFollowingDevice_p) *configStringFollowingDevice_p = NULL;
     
+    //TODO: John Wolf - make this argument processing logic case insensitive.
     a = config;
     if (a) {
         for(;;) {

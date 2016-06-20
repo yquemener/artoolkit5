@@ -156,6 +156,7 @@ lib/winrt-wp8_1-arm/
 lib/winrt-wp8_1-x86/
 
 # Android build products.
+/**/libs
 android/obj/local/**/objs/
 android/obj/local/**/objs-debug/
 android/obj/local/**/libar.a
@@ -172,12 +173,9 @@ android/obj/local/**/libkpm.a
 android/obj/local/**/libutil.a
 android/obj/local/**/libc++_shared.so
 android/obj/local/**/libcpufeatures.a
-android/libs/**/libARWrapper.so
-android/libs/**/libc++_shared.so
 AndroidStudioProjects/**/build
 AndroidStudioProjects/**/captures
 AndroidStudioProjects/**/jniLibs
-AndroidStudioProjects/**/libs
 AndroidStudioProjects/**/obj
 AndroidStudioProjects/**/build
 

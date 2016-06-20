@@ -46,7 +46,6 @@
  *******************************************************/
 
 #define _GNU_SOURCE   // asprintf()/vasprintf() on Linux.
-#include <AR/ar.h>
 #include <math.h>
 #include <stdarg.h>
 #include <ctype.h>    // tolower()
@@ -82,6 +81,8 @@
 #  endif
 #endif
 
+#include <AR/ar.h>
+
 //
 // Global required for logging functions.
 //
@@ -105,7 +106,7 @@ static int arLogWrongThreadBufferCount = 0;
 
 // To call Java methods when running native code inside an Android activity,
 // a reference is needed to the JavaVM.
-static JavaVM *gJavaVM;
+static JavaVM *gJavaVM = (JavaVM*)NULL;
 
 static char _AndroidDeviceID[32] = { '\0' };
 
@@ -1345,6 +1346,15 @@ void arUtilPrintMtx16(const ARdouble mtx16[16])
 }
 
 #ifdef ANDROID
+//
+// Get a pointer to a JavaVM instance for those native C/C++ functions that only call from
+// native code to Java code (i.e. without a preceding call from Java to native).
+//
+JavaVM* getPtrToJavaVM()
+{
+    return(gJavaVM);
+}
+
 //Call from native code to do the following in Java source:
 //    import android.provider.Settings.Secure;
 //    private String android_id = Secure.getString(getContext().getContentResolver(),
