@@ -36,8 +36,9 @@
  */
 #include <stdbool.h>
 #include <ctype.h>
-#include <AR/video.h> // This probably needs to be included before the use of
-                      // AR_VIDEO_ANDROID_ENABLE_NATIVE_CAMERA
+#include <AR/video.h> // AR/video.h, which includes AR/sys/videoAndroid.h, needs to
+                      // be included before the use of AR_VIDEO_ANDROID_ENABLE_NATIVE_CAMERA 
+                      // since AR/sys/videoAndroid.h sets the macro definition (directive)
 #if AR_VIDEO_ANDROID_ENABLE_NATIVE_CAMERA
 #  include <sys/time.h> // gettimeofday()
 #endif
@@ -103,7 +104,7 @@ AR2VideoParamAndroidT *ar2VideoOpenAndroid( const char *config )
 
     char                  *cacheDir = NULL;
     AR2VideoParamAndroidT *vid;
-    char                  *a;
+    char                  *configPosPtr;
     char                  line[1024];
     int err_i = 0;
     int i;
@@ -112,16 +113,17 @@ AR2VideoParamAndroidT *ar2VideoOpenAndroid( const char *config )
     
     arMallocClear( vid, AR2VideoParamAndroidT, 1 );
     
-    for (a = (char*)config; *a != '\0'; ++a)
-        *a = tolower(*a);
-    a = (char*)config;
-
-    if ( a != NULL ) {
+    if ( config != NULL ) {
+        for (configPosPtr = (char*)config; (*configPosPtr != '\0'); ++configPosPtr)
+            *configPosPtr = tolower(*configPosPtr);
+    
+        configPosPtr = (char*)config;
+    
         for(;;) {
-            while ( (*a == ' ') || (*a == '\t') ) a++;
-            if ( *a == '\0' ) break;
+            while ( (*configPosPtr == ' ') || (*configPosPtr == '\t') ) configPosPtr++;
+            if ( *configPosPtr == '\0' ) break;
             
-            if (sscanf(a, "%s", line) == 0) break;
+            if (sscanf(configPosPtr, "%s", line) == 0) break;
             if ( strcmp( line, DEVICE_ANDROID_OPT/*"-device=Android"*/ ) == 0 ) {
             } else if ( strncmp( line, WIDTH_OPT/*"-width="*/, (sizeof(WIDTH_OPT) - 1) ) == 0 ) {
                 if( sscanf( &line[7], "%d", &width ) == 0 ) {
@@ -151,22 +153,22 @@ AR2VideoParamAndroidT *ar2VideoOpenAndroid( const char *config )
                 } else {
                     ARLOGe("Ignoring request for unsupported video format '%s'.\n", formatArgOffset);
                 }
-            } else if ( strncmp(a, CACHE_DIR_OPT/*"-cachedir="*/, (sizeof(CACHE_DIR_OPT) - 1) ) == 0 ) {
+            } else if ( strncmp(configPosPtr, CACHE_DIR_OPT/*"-cachedir="*/, (sizeof(CACHE_DIR_OPT) - 1) ) == 0 ) {
                 // Attempt to read in pathname, allowing for quoting of whitespace.
-                a += 10; // Skip "-cachedir=" characters.
-                if (*a == '"') {
-                    a++;
+                configPosPtr += 10; // Skip "-cachedir=" characters.
+                if (*configPosPtr == '"') {
+                    configPosPtr++;
                     // Read all characters up to next '"'.
                     i = 0;
-                    while (i < (sizeof(line) - 1) && *a != '\0') {
-                        line[i] = *a;
-                        a++;
+                    while (i < (sizeof(line) - 1) && *configPosPtr != '\0') {
+                        line[i] = *configPosPtr;
+                        configPosPtr++;
                         if (line[i] == '"') break;
                         i++;
                     }
                     line[i] = '\0';
                 } else {
-                    sscanf(a, "%s", line);
+                    sscanf(configPosPtr, "%s", line);
                 }
                 if (!strlen(line)) {
                     ARLOGe("Error: Configuration option '-cachedir=' must be followed by path (optionally in double quotes).\n");
@@ -186,15 +188,15 @@ AR2VideoParamAndroidT *ar2VideoOpenAndroid( const char *config )
             }
             
             if (err_i) {
-				ARLOGe("ar2VideoOpenAndroid(): Error - unrecognised configuration option '%s'\n", a);
+				ARLOGe("ar2VideoOpenAndroid(): Error - unrecognised configuration option '%s'\n", configPosPtr);
                 ar2VideoDispOptionAndroid();
                 goto bail;
 			}
             
             //Strip off just processed char string from first char and to the right
-            while ( (*a != ' ') && (*a != '\t') && (*a != '\0') ) a++;
+            while ( (*configPosPtr != ' ') && (*configPosPtr != '\t') && (*configPosPtr != '\0') ) configPosPtr++;
         } // end: for(;;)
-    }
+    } // end: if ( configPosPtr != NULL )
     
     // Initial state.
     if (!vid->format) vid->format = AR_INPUT_ANDROID_PIXEL_FORMAT;
