@@ -155,7 +155,7 @@ AR2VideoParamAndroidT *ar2VideoOpenAndroid( const char *config )
                 }
             } else if ( strncmp(configPosPtr, CACHE_DIR_OPT/*"-cachedir="*/, (sizeof(CACHE_DIR_OPT) - 1) ) == 0 ) {
                 // Attempt to read in pathname, allowing for quoting of whitespace.
-                configPosPtr += 10; // Skip "-cachedir=" characters.
+                configPosPtr += (sizeof(CACHE_DIR_OPT) - 1); // Skip "-cachedir=" characters.
                 if (*configPosPtr == '"') {
                     configPosPtr++;
                     // Read all characters up to next '"'.
