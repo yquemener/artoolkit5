@@ -644,7 +644,7 @@ int main(int argc, char** argv)
 		glutGameModeString(glutGamemode);
 		glutEnterGameMode();
 	} else {
-		glutInitWindowSize(prefRefresh, prefHeight);
+		glutInitWindowSize(prefWidth, prefHeight);
 		glutCreateWindow(argv[0]);
 	}
 
