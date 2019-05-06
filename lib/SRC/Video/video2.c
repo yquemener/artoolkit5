@@ -671,7 +671,7 @@ AR2VideoBufferT *ar2VideoGetImage(AR2VideoParamT *vid)
             arUtilTimeSinceEpoch(&ret->time.sec, &ret->time.usec);
         }
         // Do a conversion to luma-only if the video module didn't provide one.
-        if (!ret->buffLuma) {
+        {
             AR_PIXEL_FORMAT pixFormat;
             pixFormat = ar2VideoGetPixelFormat(vid);
             if (pixFormat == AR_PIXEL_FORMAT_INVALID) {
