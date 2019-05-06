@@ -129,7 +129,6 @@ cnt = 0;
     if (!detectionIsDone) {
 #if !AR_DISABLE_THRESH_MODE_AUTO_ADAPTIVE
         if (arHandle->arLabelingThreshMode == AR_LABELING_THRESH_MODE_AUTO_ADAPTIVE) {
-            
             int ret;
             ret = arImageProcLumaHistAndBoxFilterWithBias(arHandle->arImageProcInfo, frame->buffLuma,  AR_LABELING_THRESH_ADAPTIVE_KERNEL_SIZE_DEFAULT, AR_LABELING_THRESH_ADAPTIVE_BIAS_DEFAULT);
             if (ret < 0) return (ret);
@@ -186,13 +185,17 @@ cnt = 0;
             return -1;
         }
     } // !detectionIsDone
-    
+
     // If history mode is not enabled, just perform a basic confidence cutoff.
     if (arHandle->arMarkerExtractionMode == AR_NOUSE_TRACKING_HISTORY) {
         confidenceCutoff(arHandle);
         return 0;
     }
 
+
+/*    for( j = 0; j < arHandle->marker_num; j++ ){
+        printf("AR: %d\n", arHandle->markerInfo[j].area);
+    }*/
 /*------------------------------------------------------------*/
 
     // For all history records, check every identified marker, to see if the position and size of the marker

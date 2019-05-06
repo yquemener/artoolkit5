@@ -408,7 +408,7 @@ static void mainLoop(void)
 	
 	// Grab a video frame.
 	if ((image = arVideoGetImage()) != NULL) {
-        
+
         arglPixelBufferDataUpload(gArglSettings, image->buff);
 
         if (gARTImageSavePlease) {
@@ -419,33 +419,36 @@ static void mainLoop(void)
             }
             gARTImageSavePlease = FALSE;
         }
-		
+
 		gCallCountMarkerDetect++; // Increment ARToolKit FPS counter.
-		
+
 		// Detect the markers in the video frame.
 		if (arDetectMarker(gARHandle, image) < 0) {
 			exit(-1);
 		}
-		
+
 		// Check through the marker_info array for highest confidence
 		// visible marker matching our preferred pattern.
-		k = -1;
+        k = -1;
 		for (j = 0; j < gARHandle->marker_num; j++) {
 			if (gARHandle->markerInfo[j].id == gPatt_id) {
 				if (k == -1) k = j; // First marker detected.
 				else if (gARHandle->markerInfo[j].cf > gARHandle->markerInfo[k].cf) k = j; // Higher confidence marker detected.
 			}
 		}
-		
+
 		if (k != -1) {
 			// Get the transformation between the marker and the real camera into gPatt_trans.
 			err = arGetTransMatSquare(gAR3DHandle, &(gARHandle->markerInfo[k]), gPatt_width, gPatt_trans);
-			gPatt_found = TRUE;
+            gPatt_found = TRUE;
 		} else {
-			gPatt_found = FALSE;
+            gPatt_found = FALSE;
 		}
 		
 		// Tell GLUT the display has changed.
+        if(gPatt_found){
+            printf("%f %f %f\n", gPatt_trans[0][3], gPatt_trans[1][3], gPatt_trans[2][3]);
+        }
 		glutPostRedisplay();
 	}
 }
@@ -557,7 +560,7 @@ int main(int argc, char** argv)
     char   *cparam_name = NULL;
     int     i;
     int     gotTwoPartOption;
-    char    patt_name[]  = "Data/hiro.patt";
+    char    patt_name[]  = "Data/fae.patt";
     //
     // Process command-line options.
     //
@@ -644,7 +647,7 @@ int main(int argc, char** argv)
 		glutGameModeString(glutGamemode);
 		glutEnterGameMode();
 	} else {
-		glutInitWindowSize(prefRefresh, prefHeight);
+        glutInitWindowSize(prefWidth, prefHeight);
 		glutCreateWindow(argv[0]);
 	}
 
