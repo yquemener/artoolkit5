@@ -306,7 +306,7 @@ static void cleanup(void)
 static void Keyboard(unsigned char key, int x, int y)
 {
 	int mode, threshChange = 0;
-    AR_LABELING_THRESH_MODE modea;
+    AR_LABELING_THRESH_MODE modea= AR_LABELING_THRESH_MODE_AUTO_ADAPTIVE;
 	
 	switch (key) {
 		case 0x1B:						// Quit.
