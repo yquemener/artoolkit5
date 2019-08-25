@@ -51,6 +51,7 @@ AndroidStudioProjects/nftSimpleProj/nftSimple/src/main/jni/color_convert_common.
 AndroidStudioProjects/nftSimpleProj/nftSimple/src/main/jni/nftSimple.cpp
 AndroidStudioProjects/nftSimpleProj/nftSimple/src/main/jni/trackingSub.c
 AndroidStudioProjects/nftSimpleProj/nftSimple/src/main/jni/trackingSub.h
+Makefile
 android/jni/curl/include/curl/curl.h
 android/jni/curl/include/curl/curlbuild.h
 android/jni/curl/include/curl/curlrules.h
@@ -97,6 +98,7 @@ examples/ARAppNFTOSG/osgPlugins.h
 examples/ARAppOSG/ARAppOSGDelegate.h
 examples/ARAppOSG/ARViewController.h
 examples/ARAppOSG/osgPlugins.h
+examples/Makefile
 examples/multi/multiTest.c
 examples/multiCube/multiCube.c
 examples/multiWin/multiWin.c
@@ -123,6 +125,7 @@ examples/opticalStereo/VirtualEnvironment2.c
 examples/opticalStereo/VirtualEnvironment2.h
 examples/opticalStereo/opticalStereo.c
 examples/simple/simpleTest.c
+examples/simpleLite/Makefile
 examples/simpleLite/simpleLite.c
 examples/simpleMovie/simpleMovie.c
 examples/simpleOSG/ARMarkerSquare.c
@@ -135,6 +138,9 @@ examples/stereo/ARMarkerSquare.h
 examples/stereo/VirtualEnvironment2.c
 examples/stereo/VirtualEnvironment2.h
 examples/stereo/stereo.c
+fae.c
+fae/Makefile
+fae/fae.c
 include/AR/ar.h
 include/AR/arConfig.h
 include/AR/arFilterTransMat.h

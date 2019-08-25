@@ -133,3 +133,7 @@ lib/SRC/Video/Video4Linux2
 lib/SRC/Video/WindowsMediaCapture
 lib/SRC/Video/WindowsMediaCapture/CaptureFrameGrabber
 lib/SRC/Video/WindowsMediaFoundation
+.
+examples
+examples/simpleLite
+fae

@@ -143,10 +143,10 @@ typedef struct {
  */
 typedef enum {
     AR_LABELING_THRESH_MODE_MANUAL = 0,     ///< Manual threshold selection via arSetLabelingThresh.
-    AR_LABELING_THRESH_MODE_AUTO_MEDIAN,    ///< Automatic threshold selection via full-image histogram median.
-    AR_LABELING_THRESH_MODE_AUTO_OTSU,      ///< Automatic threshold selection via Otsu's method for foreground/background selection.
-    AR_LABELING_THRESH_MODE_AUTO_ADAPTIVE,  ///< Adaptive thresholding.
-    AR_LABELING_THRESH_MODE_AUTO_BRACKETING ///< Automatic threshold selection via heuristic-based exposure bracketing.
+    AR_LABELING_THRESH_MODE_AUTO_MEDIAN=1,    ///< Automatic threshold selection via full-image histogram median.
+    AR_LABELING_THRESH_MODE_AUTO_OTSU=2,      ///< Automatic threshold selection via Otsu's method for foreground/background selection.
+    AR_LABELING_THRESH_MODE_AUTO_ADAPTIVE=3,  ///< Adaptive thresholding.
+    AR_LABELING_THRESH_MODE_AUTO_BRACKETING=4 ///< Automatic threshold selection via heuristic-based exposure bracketing.
 } AR_LABELING_THRESH_MODE;
 
 /*!

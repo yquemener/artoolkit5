@@ -306,7 +306,7 @@ static void cleanup(void)
 static void Keyboard(unsigned char key, int x, int y)
 {
 	int mode, threshChange = 0;
-    AR_LABELING_THRESH_MODE modea= AR_LABELING_THRESH_MODE_AUTO_ADAPTIVE;
+    AR_LABELING_THRESH_MODE modea;
 	
 	switch (key) {
 		case 0x1B:						// Quit.
@@ -446,8 +446,14 @@ static void mainLoop(void)
 		}
 		
 		// Tell GLUT the display has changed.
+        ARdouble m[16];
+        arglCameraViewRH((const ARdouble (*)[4])gPatt_trans, m, VIEW_SCALEFACTOR);
         if(gPatt_found){
-            printf("%f %f %f\n", gPatt_trans[0][3], gPatt_trans[1][3], gPatt_trans[2][3]);
+            printf("%f ", arUtilTimer());
+            for(int u=0;u<16;u++)
+                printf("%f ", m[u]);
+            printf("\n");
+            fflush(stdout);
         }
 		glutPostRedisplay();
 	}
@@ -561,6 +567,7 @@ int main(int argc, char** argv)
     int     i;
     int     gotTwoPartOption;
     char    patt_name[]  = "Data/fae.patt";
+    AR_LABELING_THRESH_MODE thresholdMode = AR_LABELING_THRESH_MODE_MANUAL;
     //
     // Process command-line options.
     //
@@ -581,6 +588,13 @@ int main(int argc, char** argv)
             } else if (strcmp(argv[i], "--cpara") == 0) {
                 i++;
                 cparam_name = argv[i];
+                gotTwoPartOption = TRUE;
+            } else if (strcmp(argv[i],"--thresh") == 0) {
+                i++;
+                if (sscanf(argv[i], "%u", &thresholdMode) != 1) {
+                    ARLOGe("Error: --thresh option must be followed by desired threshold method.\n");
+                }
+                printf("THRESH=%u %u\n", thresholdMode, AR_LABELING_THRESH_MODE_AUTO_OTSU);
                 gotTwoPartOption = TRUE;
             } else if (strcmp(argv[i],"--width") == 0) {
                 i++;
@@ -666,13 +680,16 @@ int main(int argc, char** argv)
 		cleanup();
 		exit(-1);
 	}
+
+    //arSetLabelingThreshMode(gARHandle, AR_LABELING_THRESH_MODE_AUTO_ADAPTIVE);
+    arSetLabelingThreshMode(gARHandle, thresholdMode);
 	
 	// Register GLUT event-handling callbacks.
 	// NB: mainLoop() is registered by Visibility.
 	glutDisplayFunc(Display);
 	glutReshapeFunc(Reshape);
 	glutVisibilityFunc(Visibility);
-	glutKeyboardFunc(Keyboard);
+    glutKeyboardFunc(Keyboard);
 	
 	glutMainLoop();
 
